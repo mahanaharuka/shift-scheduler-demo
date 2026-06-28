@@ -173,6 +173,8 @@ table.grid td.name-col{background:#fbfdfe}
 .meetbadge.on{background:var(--meeting-soft);border:1px solid var(--meeting-ink);color:var(--meeting-ink)}
 .sun3badge:hover,.meetbadge:hover{outline:2px solid var(--brand);outline-offset:1px}
 th.col-meeting,td.cell.col-meeting{background:var(--meeting-soft)}
+th.col-closed,td.cell.col-closed{background:#eceff1}
+.closedmark{margin:3px auto 0;font-size:10px;font-weight:800;color:#5a6b7a;background:#dde2e6;border-radius:5px;padding:1px 4px;width:max-content}
 /* 定例会の日は③(オレンジ)等でセルが塗られても分かるよう、紫の枠を最前面に重ねる */
 td.cell.col-meeting::after{content:"";position:absolute;inset:0;border:2px solid var(--meeting-ink);pointer-events:none;z-index:2}
 th.col-meeting{box-shadow:inset 0 -3px 0 var(--meeting-ink)}
@@ -192,6 +194,7 @@ td.cell:hover{outline:2px solid var(--brand);outline-offset:-2px;z-index:1}
 .v-pub{background:var(--off-pub);color:var(--ink-soft);font-size:13px}
 .v-req{background:var(--off-req);color:#274b9c;font-size:13px}
 .v-paid{background:var(--off-paid);color:var(--ok);font-size:13px}
+.v-closed{background:repeating-linear-gradient(45deg,#e7ebee,#e7ebee 5px,#dde2e6 5px,#dde2e6 10px);color:#5a6b7a;font-size:13px;font-weight:700}
 .v-empty{color:#c4ced6;font-size:13px}
 td.cell.disabled{background:repeating-linear-gradient(45deg,#f3f6f8,#f3f6f8 5px,#eef2f5 5px,#eef2f5 10px);cursor:not-allowed}
 .col-single{box-shadow:0 0 0 2px var(--single-border) inset}
@@ -448,6 +451,7 @@ td.right-col{background:#fbfdfe;font-weight:700}
       </p>
       <p><b>定例会（全員出勤）について</b><br>毎月「第1水曜」を全員出勤（休みを置かない日）として自動で固定します。<b>どの日の見出しの「会」バッジ</b>でも移動・解除でき、<b>土日にイレギュラーで設定すること</b>もできます（土日祝は元々全員出勤なので、その場合は印が付くだけで再生成は不要。平日に変えたときは「自動生成する」で作り直し）。機能ごと止めたいときは「対象月の設定」のチェックを外してください。</p>
       <p><b>①③の一括切替について</b><br>見出しの「③/①」バッジを押すと、その日に出勤する全員の終業を<b>③（18:30閉め）と①（17:30）でまとめて切替</b>できます。土日だけでなく<b>平日も</b>設定できます（公休の人は対象外）。生成後すぐ反映されます。</p>
+      <p><b>臨時休業（店休）について</b><br>表のセルをクリックして「<b>臨時休業（店休・全員）</b>」を選ぶと、その日は<b>店舗の休み＝全員休み</b>になります（表では「臨休」）。自動生成の<b>前に設定</b>しておけば、その日を避けて公休を割り振ります（公休日数は変わりません）。生成後に設定した場合は、その日の出勤者だけ臨休に変わります。解除はもう一度セルから「臨時休業を解除」。土日・祝日でも設定できます。</p>
       <p><b>4. 有給管理</b><br>「従業員設定」の<b>入社日</b>から、勤続年数に応じた付与日数（6ヶ月=10日…6年半〜=20日）を自動計算します。人ごとに付与のタイミング（基準日）が違ってもOK。2年で時効消滅するため<b>今年分・去年分（繰越）</b>を分けて表示し、<b>残合計</b>も出します。半休は0.5日。基準日を変えれば過去・未来の状態も確認でき、印刷・PDF保存も可能。<br>
       ・<b>有休の入力はシフト表のセルから</b>（「シフト作成」タブでセルをクリック→有給／半休。<b>自動生成の前でも</b>入力でき、過去の月でも入れられます）。有給管理タブには自動で集計されます。<br>
       ・<b>最低取得日数（年5日）</b>：付与10日以上の人は、付与日から1年で5日の取得が必要です。各人の「取得◯/5日・あと◯日・期限」を表示するので、取れているか一目で確認できます。</p>
@@ -496,10 +500,11 @@ td.right-col{background:#fbfdfe;font-weight:700}
    シフト自動作成  ロジック（依存ゼロ・完全オフライン）
    ========================================================================= */
 
-const APP_VERSION = '1.2.4'; // 定例会の見分け（③併用時も紫枠）・解除でシフトが消えない修正
+const APP_VERSION = '1.2.5'; // 臨時休業（店休）をセルから設定できるように
 // お問い合わせ送信先（Discord Webhook）。ブラウザから直接送信できることを確認済み。
 const CONTACT_WEBHOOK = '';
 const HALF = '半'; // 半日有給（出勤扱い・有給0.5日）
+const CLOSED = '臨'; // 臨時休業（店舗の休み・全員休み）
 const PART = 'パ'; // パート勤務（10:00-16:00・6.0h）
 const SHORT = '短'; // 育児短時間勤務の正社員（9:00-16:00・6.0h）
 const PART_HOURS = 6.0, SHORT_HOURS = 6.0;
@@ -516,7 +521,7 @@ const WORK_SYMBOLS = ['①','②','③','④'];
 const OFF = {pub:'公', req:'希', paid:'有'}; // 公休(自動) / 希望休 / 有給
 const isWork = v => WORK_SYMBOLS.includes(v);                        // 通常の勤務シフト(正社員)
 const isPresent = v => WORK_SYMBOLS.includes(v) || v===HALF || v===PART || v===SHORT; // 出勤扱い（半休・パート・時短も含む）
-const isOff  = v => v===OFF.pub || v===OFF.req || v===OFF.paid;
+const isOff  = v => v===OFF.pub || v===OFF.req || v===OFF.paid || v===CLOSED;
 const DOW = ['日','月','火','水','木','金','土'];
 
 const pad2 = n => String(n).padStart(2,'0');
@@ -748,15 +753,22 @@ function allHandsDates(y,m){
   const w=nthWeekdayDate(y,m,3,1); // 第1水曜
   return w?[w]:[];
 }
+// 臨時休業（店休）の日付（当月分）
+function closedDates(y,m){
+  const mo=state.months[monthKey(y,m)];
+  return (mo && mo.closed) ? mo.closed.filter(dt=>dt.slice(0,7)===monthKey(y,m)) : [];
+}
 function buildDays(y,m){
   const n=daysInMonth(y,m), arr=[];
   const ah=new Set(allHandsDates(y,m));
+  const cl=new Set(closedDates(y,m));
   for(let d=1; d<=n; d++){
     const date=ymd(y,m,d), dw=dowOf(y,m,d);
     const hol=holidayName(date);
-    const meeting=ah.has(date);
-    arr.push({date, d, dow:dw, isWeekend:(dw===0||dw===6), holiday:hol, meeting,
-              mustWork:(dw===0||dw===6||!!hol||meeting)});
+    const closed=cl.has(date);                 // 臨時休業＝店舗休み（出勤日でも休みでもない独立カテゴリ）
+    const meeting=ah.has(date) && !closed;
+    arr.push({date, d, dow:dw, isWeekend:(dw===0||dw===6), holiday:hol, meeting, closed,
+              mustWork: !closed && (dw===0||dw===6||!!hol||meeting)});
   }
   return arr;
 }
@@ -799,7 +811,7 @@ function feasibility(days, emps, mo){
     const paid=(mo.paid[e.id]||[]).filter(dt=>days.some(x=>x.date===dt));
     const half=(mo.halfPaid[e.id]||[]); // 半休は出勤扱い＝休みを置けない平日
     const target=phTarget(mo,e.id);
-    const weekdayFree=days.filter(x=>!x.mustWork &&
+    const weekdayFree=days.filter(x=>!x.mustWork && !x.closed &&
       !req.includes(x.date) && !paid.includes(x.date) && !half.includes(x.date)).length;
     const autoNeed=target-req.length;
     if(autoNeed<0) problems.push(`${e.name}さん：希望休(${req.length}日)が公休日数(${target}日)を超えています。`);
@@ -834,7 +846,8 @@ function buildSchedule(days, emps, mo, autoAssign){
     const paid=new Set((mo.paid[e.id]||[]));
     const auto=autoAssign[e.id];
     days.forEach(day=>{
-      if(paid.has(day.date)) sched[e.id][day.date]=OFF.paid;
+      if(day.closed) sched[e.id][day.date]= paid.has(day.date)?OFF.paid:CLOSED; // 臨時休業＝休み（有給指定があれば尊重）
+      else if(paid.has(day.date)) sched[e.id][day.date]=OFF.paid;
       else if(req.has(day.date)) sched[e.id][day.date]=OFF.req;
       else if(auto.has(day.date)) sched[e.id][day.date]=OFF.pub;
       else sched[e.id][day.date]='①'; // 出勤（時間帯は後で）
@@ -847,6 +860,7 @@ function hardViolations(sched, days, emps){
   const v=[];
   const byId={}; emps.forEach(e=>byId[e.id]=e);
   days.forEach(day=>{
+    if(day.closed) return; // 臨時休業は店休なので人数・鍵などの判定対象外
     const workers=emps.filter(e=>isPresent(sched[e.id][day.date]));
     const keyWorking=workers.some(e=>e.soloOK);
     if(day.mustWork){
@@ -889,6 +903,7 @@ function softScore(sched, days, emps, tail, minStaff){
   const lone={};
   emps.filter(e=>e.soloOK).forEach(e=>lone[e.id]=0);
   days.forEach(day=>{
+    if(day.closed) return; // 臨時休業は人数評価の対象外
     const workers=emps.filter(e=>isWork(sched[e.id][day.date]));
     const w=workers.length;
     if(w<minStaff)     score += (minStaff-w)*W_HARD;     // 設定した最低人数を割る日（ほぼ禁止）
@@ -942,7 +957,7 @@ function randomAuto(days, emps, mo){
     const half=new Set(mo.halfPaid[e.id]||[]); // 半休は出勤扱い＝休みを置かない
     const target=phTarget(mo,e.id);
     const need=target - (mo.requests[e.id]||[]).filter(dt=>days.some(x=>x.date===dt)).length;
-    const free=days.filter(x=>!x.mustWork && !req.has(x.date) && !paid.has(x.date) && !half.has(x.date)).map(x=>x.date);
+    const free=days.filter(x=>!x.mustWork && !x.closed && !req.has(x.date) && !paid.has(x.date) && !half.has(x.date)).map(x=>x.date);
     shuffle(free);
     auto[e.id]=new Set(free.slice(0, Math.max(0,need)));
   });
@@ -958,7 +973,7 @@ function countRenkyuFromSet(offSet, days){
 // 残りの公休を1日ずつ薄く分散させる。常時2人体制を保ちつつ2連休を達成しやすくする。
 function seedWithBlocks(days, emps, mo, minStaff, tail){
   const idx={}; days.forEach((d,i)=>idx[d.date]=i);
-  const weekdayList=days.filter(d=>!d.mustWork);
+  const weekdayList=days.filter(d=>!d.mustWork && !d.closed);
   // 1日に同時に休める最大人数（2人体制を保つため、超えると一人勤務になる）
   const maxOff=Math.max(1, emps.length - coverTargetOf(emps, minStaff));
   const offCount={}; days.forEach(d=>offCount[d.date]=0);
@@ -996,7 +1011,7 @@ function seedWithBlocks(days, emps, mo, minStaff, tail){
   for(const e of shuffle(emps.slice())){
     let guard=0;
     while(need[e.id]>0 && guard++<400){
-      const allow=(dt)=> idx[dt]!=null && !days[idx[dt]].mustWork && !blocked[e.id].has(dt) && offCount[dt]<maxOff;
+      const allow=(dt)=> idx[dt]!=null && !days[idx[dt]].mustWork && !days[idx[dt]].closed && !blocked[e.id].has(dt) && offCount[dt]<maxOff;
       const pick=runBreakTarget(days, dt=>empOff[e.id].has(dt), tail[e.id]||0, allow);
       if(!pick) return null;
       auto[e.id].add(pick); empOff[e.id].add(pick); blocked[e.id].add(pick); offCount[pick]++; need[e.id]--;
@@ -1441,6 +1456,24 @@ function clearCellPre(mo,e,dt){
 }
 
 // 日曜ヘッダーのクリックで③(18:30閉め)を切り替え
+// 臨時休業（店休）の設定／解除。生成前は印だけ、生成後はシフトを保持して必要分だけ変更。
+function setClosed(mo, date, on){
+  mo.closed=(mo.closed||[]).filter(d=>d!==date);
+  if(on) mo.closed.push(date);
+  if(scheduleReady(mo)){
+    state.employees.forEach(e=>{
+      const v=mo.schedule[e.id][date];
+      if(on){
+        if(isPresent(v)) mo.schedule[e.id][date]=CLOSED; // 出勤の人だけ臨に（公休・有給はそのまま＝日数が崩れない）
+      } else {
+        if(v===CLOSED){ const mode=modeOf(e,mo.year,mo.month); mo.schedule[e.id][date]= mode==='full'?'①':(mode==='short'?SHORT:PART); }
+      }
+    });
+    recalcTail(mo);
+  }
+  saveState(); hidePop(); renderMake(); renderPaid();
+  toast(on?'臨時休業に設定しました（全員休み）':'臨時休業を解除しました');
+}
 function toggleSun3(mo, days, date){
   let arr=new Set(mo.sun3 || chooseSun3(days,mo));
   if(arr.has(date)) arr.delete(date); else arr.add(date);
@@ -1489,7 +1522,7 @@ function renderGrid(mo, days){
   const coverTarget=coverTargetOf(emps, minStaff); // この人数未満（=一人勤務など）を強調
   const sun3set=new Set(chooseSun3(days, mo)); // ③(18:30閉め)にする日曜
   // 出勤が手薄な日 & 出勤数
-  const dayWorkers=days.map(day=> sched? emps.filter(e=>isPresent(sched[e.id][day.date])).length : null);
+  const dayWorkers=days.map(day=> (sched && !day.closed)? emps.filter(e=>isPresent(sched[e.id][day.date])).length : null);
 
   const table=el('table','grid');
   // head
@@ -1497,27 +1530,33 @@ function renderGrid(mo, days){
   htr.appendChild(thColName('従業員'));
   days.forEach((day,i)=>{
     const th=el('th','daycol');
-    if(day.meeting) th.classList.add('col-meeting');
+    if(day.closed) th.classList.add('col-closed');
+    else if(day.meeting) th.classList.add('col-meeting');
     else if(day.holiday) th.classList.add('col-hol'); else if(day.dow===6) th.classList.add('col-sat'); else if(day.dow===0) th.classList.add('col-sun');
     if(dayWorkers[i]!==null && dayWorkers[i]<coverTarget) th.classList.add('col-single');
     const dn=el('div','daynum',day.d);
     const dw=el('div','dow'+(day.dow===6?' sat':day.dow===0?' sun':''), DOW[day.dow]);
     th.appendChild(dn); th.appendChild(dw);
     if(day.holiday){ const h=el('div','dow sun'); h.textContent='祝'; h.title=day.holiday; th.appendChild(h); }
-    // すべての日に「会(定例会・全員出勤)」と「③/①(その日の終業を全員一括で切替)」の2バッジを表示
-    const badges=el('div','hdr-badges');
-    const mon=day.meeting;
-    const mb=el('div','meetbadge'+(mon?' on':''),'会');
-    mb.title='定例会（全員出勤）を'+(mon?'解除':'設定')+'（土日祝は元々全員出勤・印のみ）';
-    mb.onclick=(ev)=>{ ev.stopPropagation(); toggleAllHands(mo, day.date); };
-    badges.appendChild(mb);
-    const son=sun3set.has(day.date);
-    const sb=el('div','sun3badge'+(son?' on':''), son?'③':'①');
-    sb.title='この日の終業を全員'+(son?'①(17:30)に戻す':'③(18:30閉め)にする');
-    sb.onclick=(ev)=>{ ev.stopPropagation(); toggleSun3(mo, days, day.date); };
-    badges.appendChild(sb);
-    th.appendChild(badges);
-    th.title=day.meeting?`${day.date} 定例会(全員出勤)`:(day.holiday?`${day.date} ${day.holiday}`:day.date);
+    if(day.closed){
+      // 臨時休業の日はバッジの代わりに「臨」マークを表示（解除はセルをクリック）
+      const cm=el('div','closedmark','臨休'); cm.title='臨時休業（解除はセルをクリック）'; th.appendChild(cm);
+    } else {
+      // すべての日に「会(定例会・全員出勤)」と「③/①(その日の終業を全員一括で切替)」の2バッジを表示
+      const badges=el('div','hdr-badges');
+      const mon=day.meeting;
+      const mb=el('div','meetbadge'+(mon?' on':''),'会');
+      mb.title='定例会（全員出勤）を'+(mon?'解除':'設定')+'（土日祝は元々全員出勤・印のみ）';
+      mb.onclick=(ev)=>{ ev.stopPropagation(); toggleAllHands(mo, day.date); };
+      badges.appendChild(mb);
+      const son=sun3set.has(day.date);
+      const sb=el('div','sun3badge'+(son?' on':''), son?'③':'①');
+      sb.title='この日の終業を全員'+(son?'①(17:30)に戻す':'③(18:30閉め)にする');
+      sb.onclick=(ev)=>{ ev.stopPropagation(); toggleSun3(mo, days, day.date); };
+      badges.appendChild(sb);
+      th.appendChild(badges);
+    }
+    th.title=day.closed?`${day.date} 臨時休業`:(day.meeting?`${day.date} 定例会(全員出勤)`:(day.holiday?`${day.date} ${day.holiday}`:day.date));
     htr.appendChild(th);
   });
   ['出勤','公休','有給','勤務時間'].forEach(t=>{ const th=el('th','right-col',t); thead.title=t; htr.appendChild(th); });
@@ -1533,7 +1572,8 @@ function renderGrid(mo, days){
     let work=0,pub=0,paid=0,hours=0;
     days.forEach((day,i)=>{
       const td=el('td','cell');
-      if(day.meeting) td.classList.add('col-meeting');
+      if(day.closed) td.classList.add('col-closed');
+      else if(day.meeting) td.classList.add('col-meeting');
       else if(day.holiday) td.classList.add('col-hol'); else if(day.dow===6) td.classList.add('col-sat'); else if(day.dow===0) td.classList.add('col-sun');
       if(dayWorkers[i]!==null && dayWorkers[i]<coverTarget){ td.classList.add('in-single'); }
       const v= sched? sched[e.id][day.date] : preGenValue(mo,e,day);
@@ -1541,6 +1581,7 @@ function renderGrid(mo, days){
       if(sched){
         if(isPresent(v)){ work++; hours+=dayHoursOf(e,v,mo.year,mo.month); if(v===HALF) paid+=0.5; }
         else if(v===OFF.paid) paid++;
+        else if(v===CLOSED){ /* 臨時休業：公休にも有給にも数えない */ }
         else pub++;
       } else {
         if(v===OFF.paid) paid++; else if(v===OFF.req) pub++;
@@ -1577,9 +1618,10 @@ function renderGrid(mo, days){
 function thColName(t){ const th=el('th','name-col',t); return th; }
 function thColNameFoot(t){ const td=el('td','name-col',t); return td; }
 
-function preGenValue(mo,e,day){ // 生成前の表示（希望休/有給/半休）
+function preGenValue(mo,e,day){ // 生成前の表示（臨時休業/希望休/有給/半休）
   if((mo.halfPaid[e.id]||[]).includes(day.date)) return HALF;
   if((mo.paid[e.id]||[]).includes(day.date)) return OFF.paid;
+  if(day.closed) return CLOSED; // 臨時休業＝全員休み（有給・半休が指定済みなら上で優先）
   if((mo.requests[e.id]||[]).includes(day.date)) return OFF.req;
   return '';
 }
@@ -1595,6 +1637,7 @@ function renderCellValue(td, v, day){
   else if(v===OFF.pub){ span.className='v v-pub'; span.textContent='公休'; }
   else if(v===OFF.req){ span.className='v v-req'; span.textContent='希望'; }
   else if(v===OFF.paid){ span.className='v v-paid'; span.textContent='有給'; }
+  else if(v===CLOSED){ span.className='v v-closed'; span.textContent='臨休'; }
   td.innerHTML=''; td.appendChild(span);
 }
 
@@ -1623,13 +1666,17 @@ function openCellPop(ev, mo, e, day, days){
     }
     opts.push(['有','有給（1日）',()=>setCellPaid(mo,e,day)]);
     opts.push(['半','半休（有給0.5日）',()=>setCellHalf(mo,e,day)]);
+    opts.push(day.closed ? ['臨','臨時休業を解除',()=>setClosed(mo,day.date,false)]
+                         : ['臨','臨時休業（店休・全員）',()=>setClosed(mo,day.date,true)]);
   } else {
-    // 生成前：希望休/有給/半休/クリア（シフトを作らなくても入力できる）
+    // 生成前：希望休/有給/半休/臨時休業/クリア（シフトを作らなくても入力できる）
     if(!day.mustWork){
       opts.push(['希','希望休に設定',()=>{addOff(mo,e,day.date,'req');hidePop();}]);
     }
     opts.push(['有','有給に設定',()=>{addOff(mo,e,day.date,'paid');hidePop();}]);
     opts.push(['半','半休に設定',()=>{addHalfPre(mo,e,day.date);hidePop();}]);
+    opts.push(day.closed ? ['臨','臨時休業を解除',()=>setClosed(mo,day.date,false)]
+                         : ['臨','臨時休業（店休・全員）',()=>setClosed(mo,day.date,true)]);
     opts.push(['・','クリア',()=>{clearCellPre(mo,e,day.date);hidePop();}]);
   }
   opts.forEach(([sw,label,fn])=>{
@@ -1711,7 +1758,7 @@ function renderViolations(mo, days){
   phMsgs.forEach(m=>msgs.push(m));
   // 情報：一人勤務の日／最低人数割れ／最大連勤
   let single=0, under=0;
-  days.forEach(d=>{ const w=emps.filter(e=>isPresent(mo.schedule[e.id][d.date])).length; if(w===1) single++; if(w<minStaff) under++; });
+  days.forEach(d=>{ if(d.closed) return; const w=emps.filter(e=>isPresent(mo.schedule[e.id][d.date])).length; if(w===1) single++; if(w<minStaff) under++; });
   const tail=prevTail(mo.year,mo.month);
   let maxRun=0; const longList=[];
   emps.forEach(e=>{ let run=tail[e.id]||0, mx=run; days.forEach(d=>{ if(isPresent(mo.schedule[e.id][d.date])){run++; if(run>mx)mx=run;} else run=0; }); if(mx>maxRun)maxRun=mx; if(mx>=5) longList.push(`${e.name}さん ${mx}連勤`); });
@@ -1773,6 +1820,7 @@ function renderLegend(){
     ['希望','希','v-req','希望休'],
     ['有給','有','v-paid','有給(1日)'],
     ['半','半','v-half','半休(有給0.5日・実働4h)'],
+    ['臨','臨休','v-closed','臨時休業（店舗の休み・全員休み）'],
   ];
   items.forEach(([t,sw,cls,desc])=>{
     const it=el('span','item');
@@ -2059,7 +2107,7 @@ function copyChat(){
   emps.forEach(e=>{
     const name=(e.name+'　　').slice(0,4);
     const cells=days.map(d=>{ const v=mo.schedule[e.id][d.date];
-      if(v===HALF) return '半'; if(isWork(v)) return v; if(v===OFF.paid) return '有'; if(v===OFF.req) return '希'; return '休'; });
+      if(v===HALF) return '半'; if(isWork(v)) return v; if(v===OFF.paid) return '有'; if(v===CLOSED) return '臨'; if(v===OFF.req) return '希'; return '休'; });
     lines.push(name+' '+cells.join(' '));
   });
   lines.push('出勤  '+days.map(d=> ' '+emps.filter(e=>isPresent(mo.schedule[e.id][d.date])).length ).join(' '));
