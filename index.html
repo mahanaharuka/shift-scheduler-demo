@@ -159,19 +159,19 @@ table.grid th.name-col,table.grid td.name-col{
 }
 table.grid thead th.name-col{z-index:4}
 table.grid td.name-col{background:#fbfdfe}
-.daycol{min-width:40px;padding:4px 2px}
+.daycol{min-width:46px;padding:4px 2px}
 .daynum{font-size:14px;font-weight:700}
 .dow{font-size:11px;color:var(--ink-soft)}
 .dow.sat{color:#1769aa}
 .dow.sun{color:#b3261e}
-.sun3badge{margin:2px auto 0;width:20px;height:18px;border-radius:5px;font-size:11px;font-weight:800;
-  display:flex;align-items:center;justify-content:center;border:1px solid var(--line-strong);background:#fff;color:var(--ink-soft)}
+.hdr-badges{display:flex;gap:3px;justify-content:center;margin-top:3px}
+.sun3badge,.meetbadge{width:18px;height:17px;border-radius:5px;font-size:11px;font-weight:800;
+  display:flex;align-items:center;justify-content:center;cursor:pointer}
+.sun3badge{border:1px solid var(--line-strong);background:#fff;color:var(--ink-soft)}
 .sun3badge.on{background:var(--shift3);border-color:var(--single-border);color:var(--accent)}
-.sun3badge:hover{outline:2px solid var(--brand);outline-offset:1px}
-.meetbadge{margin:2px auto 0;width:20px;height:18px;border-radius:5px;font-size:11px;font-weight:800;
-  display:flex;align-items:center;justify-content:center;border:1px dashed var(--line-strong);background:#fff;color:#c4ced6}
+.meetbadge{border:1px dashed var(--line-strong);background:#fff;color:#c4ced6}
 .meetbadge.on{background:var(--meeting-soft);border:1px solid var(--meeting-ink);color:var(--meeting-ink)}
-.meetbadge:hover{outline:2px solid var(--brand);outline-offset:1px}
+.sun3badge:hover,.meetbadge:hover{outline:2px solid var(--brand);outline-offset:1px}
 th.col-meeting,td.cell.col-meeting{background:var(--meeting-soft)}
 th.col-sat{background:var(--sat)}
 th.col-sun,th.col-hol{background:var(--sun)}
@@ -492,7 +492,7 @@ td.right-col{background:#fbfdfe;font-weight:700}
    シフト自動作成  ロジック（依存ゼロ・完全オフライン）
    ========================================================================= */
 
-const APP_VERSION = '1.2.2'; // 有給：入社6ヶ月後の発生日を明示・発生前の誤入力を警告
+const APP_VERSION = '1.2.3'; // 定例会・③①一括をすべての曜日で設定できるように
 // お問い合わせ送信先（Discord Webhook）。ブラウザから直接送信できることを確認済み。
 const CONTACT_WEBHOOK = '';
 const HALF = '半'; // 半日有給（出勤扱い・有給0.5日）
@@ -1125,10 +1125,9 @@ function localSearch(best, days, emps, mo, tail, minStaff, passes){
 function cloneSched(s){ const o={}; for(const k in s){ o[k]={...s[k]}; } return o; }
 
 function chooseSun3(days, mo){
-  if(mo.sun3){ // 既存の選択（当月の土日のみ）を尊重。0個でも尊重（=全部①にしたい場合）
-    const valid=mo.sun3.filter(dt=>days.some(x=>x.date===dt && (x.dow===0||x.dow===6)));
-    if(valid.length===mo.sun3.length) return valid;
-    if(valid.length) return valid;
+  if(mo.sun3){ // 既存の選択（当月の日付＝平日・土日問わず③にした日）を尊重。0個でも尊重（=全部①）
+    const inMonth=new Set(days.map(x=>x.date));
+    return mo.sun3.filter(dt=>inMonth.has(dt));
   }
   const sundays=days.filter(x=>x.dow===0).map(x=>x.date);
   if(sundays.length<=2) return sundays.slice();
@@ -1445,14 +1444,22 @@ function toggleSun3(mo, days, date){
   if(scheduleReady(mo)){ applyShiftTimes(mo.schedule, days, state.employees, mo.sun3); recalcTail(mo); }
   saveState(); renderMake();
 }
-// 平日ヘッダーのクリックで「定例会（全員出勤）」を切り替え（出勤固定が変わるので要再生成）
+// ヘッダーの「会」クリックで「定例会（全員出勤）」を切り替え。
+// 平日は出勤固定が変わるので要再生成。土日祝は元々全員出勤なので印を付けるだけ（再生成不要）。
 function toggleAllHands(mo, date){
   const cur=new Set(allHandsDates(mo.year, mo.month));
   if(cur.has(date)) cur.delete(date); else cur.add(date);
   mo.allHands=[...cur].sort();
-  mo.schedule=null; // 出勤固定日が変わったため作り直しが必要
-  saveState(); renderMake();
-  toast('定例会（全員出勤）の日を変更しました。「自動生成する」で作り直してください');
+  const d=new Date(date), isWeekendOrHol=(d.getDay()===0||d.getDay()===6)||!!holidayName(date);
+  if(!isWeekendOrHol){
+    mo.schedule=null; // 平日は出勤固定日が変わったため作り直しが必要
+    saveState(); renderMake();
+    toast('定例会（全員出勤）の日を変更しました。「自動生成する」で作り直してください');
+  } else {
+    // 土日祝は既に全員出勤。印（紫の「会」）の付け外しのみ。
+    saveState(); renderMake();
+    toast('定例会の印を更新しました（土日祝は元々全員出勤です）');
+  }
 }
 
 /* ---------- シフト表グリッド ---------- */
@@ -1479,23 +1486,19 @@ function renderGrid(mo, days){
     const dw=el('div','dow'+(day.dow===6?' sat':day.dow===0?' sun':''), DOW[day.dow]);
     th.appendChild(dn); th.appendChild(dw);
     if(day.holiday){ const h=el('div','dow sun'); h.textContent='祝'; h.title=day.holiday; th.appendChild(h); }
-    if(day.dow===0 || day.dow===6){
-      // 土日は③(18:30閉め)の切替バッジ。クリックで全員③/①を切替
-      const on=sun3set.has(day.date);
-      const b=el('div','sun3badge'+(on?' on':''), on?'③':'①');
-      b.title='クリックで'+(on?'①(17:30)に戻す':'③(18:30閉め・全員)にする');
-      b.onclick=(ev)=>{ ev.stopPropagation(); toggleSun3(mo, days, day.date); };
-      th.appendChild(b);
-      th.style.cursor='pointer';
-    } else if(day.dow>=1 && day.dow<=5 && !day.holiday){
-      // 平日は「会」（定例会＝全員出勤）の切替バッジ
-      const on=day.meeting;
-      const b=el('div','meetbadge'+(on?' on':''), '会');
-      b.title='クリックで定例会(全員出勤)を'+(on?'解除する':'設定する');
-      b.onclick=(ev)=>{ ev.stopPropagation(); toggleAllHands(mo, day.date); };
-      th.appendChild(b);
-      th.style.cursor='pointer';
-    }
+    // すべての日に「会(定例会・全員出勤)」と「③/①(その日の終業を全員一括で切替)」の2バッジを表示
+    const badges=el('div','hdr-badges');
+    const mon=day.meeting;
+    const mb=el('div','meetbadge'+(mon?' on':''),'会');
+    mb.title='定例会（全員出勤）を'+(mon?'解除':'設定')+'（土日祝は元々全員出勤・印のみ）';
+    mb.onclick=(ev)=>{ ev.stopPropagation(); toggleAllHands(mo, day.date); };
+    badges.appendChild(mb);
+    const son=sun3set.has(day.date);
+    const sb=el('div','sun3badge'+(son?' on':''), son?'③':'①');
+    sb.title='この日の終業を全員'+(son?'①(17:30)に戻す':'③(18:30閉め)にする');
+    sb.onclick=(ev)=>{ ev.stopPropagation(); toggleSun3(mo, days, day.date); };
+    badges.appendChild(sb);
+    th.appendChild(badges);
     th.title=day.meeting?`${day.date} 定例会(全員出勤)`:(day.holiday?`${day.date} ${day.holiday}`:day.date);
     htr.appendChild(th);
   });
@@ -2016,7 +2019,7 @@ function doPrint(){
   // grid のクローン
   const grid=$('#gridHost table').cloneNode(true);
   // 操作用バッジ（会／③①の切替）は印刷では非表示
-  grid.querySelectorAll('.sun3badge,.meetbadge').forEach(n=>n.remove());
+  grid.querySelectorAll('.hdr-badges').forEach(n=>n.remove());
   // 集計列を含めない設定なら右側列を削除
   if(!$('#chkSummary').checked){ grid.querySelectorAll('.right-col').forEach(n=>n.remove()); }
   host.appendChild(grid);
