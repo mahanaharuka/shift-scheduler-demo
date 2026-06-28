@@ -173,6 +173,9 @@ table.grid td.name-col{background:#fbfdfe}
 .meetbadge.on{background:var(--meeting-soft);border:1px solid var(--meeting-ink);color:var(--meeting-ink)}
 .sun3badge:hover,.meetbadge:hover{outline:2px solid var(--brand);outline-offset:1px}
 th.col-meeting,td.cell.col-meeting{background:var(--meeting-soft)}
+/* 定例会の日は③(オレンジ)等でセルが塗られても分かるよう、紫の枠を最前面に重ねる */
+td.cell.col-meeting::after{content:"";position:absolute;inset:0;border:2px solid var(--meeting-ink);pointer-events:none;z-index:2}
+th.col-meeting{box-shadow:inset 0 -3px 0 var(--meeting-ink)}
 th.col-sat{background:var(--sat)}
 th.col-sun,th.col-hol{background:var(--sun)}
 td.cell{height:42px;cursor:pointer;font-size:16px;font-weight:700;padding:0;position:relative}
@@ -493,7 +496,7 @@ td.right-col{background:#fbfdfe;font-weight:700}
    シフト自動作成  ロジック（依存ゼロ・完全オフライン）
    ========================================================================= */
 
-const APP_VERSION = '1.2.3'; // 定例会・③①一括をすべての曜日で設定できるように
+const APP_VERSION = '1.2.4'; // 定例会の見分け（③併用時も紫枠）・解除でシフトが消えない修正
 // お問い合わせ送信先（Discord Webhook）。ブラウザから直接送信できることを確認済み。
 const CONTACT_WEBHOOK = '';
 const HALF = '半'; // 半日有給（出勤扱い・有給0.5日）
@@ -1446,20 +1449,34 @@ function toggleSun3(mo, days, date){
   saveState(); renderMake();
 }
 // ヘッダーの「会」クリックで「定例会（全員出勤）」を切り替え。
-// 平日は出勤固定が変わるので要再生成。土日祝は元々全員出勤なので印を付けるだけ（再生成不要）。
+// 生成後もシフトは消さずに保持する（設定時はその日の休みの人だけ出勤に変更、解除時は印を外すだけ）。
 function toggleAllHands(mo, date){
-  const cur=new Set(allHandsDates(mo.year, mo.month));
-  if(cur.has(date)) cur.delete(date); else cur.add(date);
-  mo.allHands=[...cur].sort();
-  const d=new Date(date), isWeekendOrHol=(d.getDay()===0||d.getDay()===6)||!!holidayName(date);
-  if(!isWeekendOrHol){
-    mo.schedule=null; // 平日は出勤固定日が変わったため作り直しが必要
-    saveState(); renderMake();
-    toast('定例会（全員出勤）の日を変更しました。「自動生成する」で作り直してください');
+  const set=new Set(allHandsDates(mo.year, mo.month));
+  const adding=!set.has(date);
+  if(adding) set.add(date); else set.delete(date);
+  mo.allHands=[...set].sort();
+  // 生成前は印（出勤固定日）を記録するだけ。次の生成で反映される。
+  if(!scheduleReady(mo)){ saveState(); renderMake(); toast(adding?'定例会を設定しました':'定例会を解除しました'); return; }
+  if(adding){
+    // 定例会＝全員出勤。その日に休み(公休/希望休)の人だけ出勤に変更（有給・半休はそのまま尊重）。
+    const days=buildDays(mo.year,mo.month);
+    const sun3=new Set(chooseSun3(days,mo));
+    let changed=0;
+    state.employees.forEach(e=>{
+      const v=mo.schedule[e.id][date];
+      if(v===OFF.pub || v===OFF.req){
+        if(v===OFF.req && mo.requests[e.id]) mo.requests[e.id]=mo.requests[e.id].filter(x=>x!==date);
+        const mode=modeOf(e,mo.year,mo.month);
+        mo.schedule[e.id][date]= mode==='full' ? (sun3.has(date)?'③':'①') : (mode==='short'?SHORT:PART);
+        changed++;
+      }
+    });
+    recalcTail(mo); saveState(); renderMake();
+    toast(changed? `定例会に設定（${changed}名を出勤に変更）。公休が減った人は別の日へ振り替えてください` : '定例会に設定しました');
   } else {
-    // 土日祝は既に全員出勤。印（紫の「会」）の付け外しのみ。
+    // 解除：その日が全員出勤のままでも問題なし。シフトは保持し、印だけ外す。
     saveState(); renderMake();
-    toast('定例会の印を更新しました（土日祝は元々全員出勤です）');
+    toast('定例会を解除しました（シフトはそのまま）');
   }
 }
 
