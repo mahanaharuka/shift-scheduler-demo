@@ -492,7 +492,7 @@ td.right-col{background:#fbfdfe;font-weight:700}
    シフト自動作成  ロジック（依存ゼロ・完全オフライン）
    ========================================================================= */
 
-const APP_VERSION = '1.2.1'; // アプリのバージョン（自動保存・自動更新・お問い合わせ対応）
+const APP_VERSION = '1.2.2'; // 有給：入社6ヶ月後の発生日を明示・発生前の誤入力を警告
 // お問い合わせ送信先（Discord Webhook）。ブラウザから直接送信できることを確認済み。
 const CONTACT_WEBHOOK = '';
 const HALF = '半'; // 半日有給（出勤扱い・有給0.5日）
@@ -1880,6 +1880,8 @@ function renderPaid(){
       const curRem=Math.max(0, curDays-Math.max(0,used.days-prevDays));
       const total=prevRem+curRem;
       c.appendChild(lineDiv('勤続', g.service>=1? g.service.toFixed(1)+'年' : Math.max(0,Math.round(g.service*12))+'ヶ月'));
+      const startNote=el('div','muted'); startNote.style.fontSize='11px'; startNote.style.margin='-4px 0 4px';
+      startNote.textContent=`有給スタート ${addMonthsStr(e.hireDate,6)}（入社6ヶ月後）`; c.appendChild(startNote);
       if(g.prev) c.appendChild(lineDiv(`去年分・繰越（${grantYearLabel(g.prev.date)}）`, `残 ${fmtDays(prevRem)} / ${prevDays}日`));
       c.appendChild(lineDiv(`今年分（${grantYearLabel(g.cur.date)}）`, `残 ${fmtDays(curRem)} / ${curDays}日`));
       const sub2=el('div','muted'); sub2.style.fontSize='11px'; sub2.style.margin='-4px 0 2px'; sub2.textContent='今年分の付与日 '+g.cur.date+'（付与から2年で時効消滅）'; c.appendChild(sub2);
@@ -1910,14 +1912,29 @@ function renderPaid(){
         else { body.className='muted'; body.textContent='まだありません'; }
         c.appendChild(body);
       });
+    } else if(e.hireDate){
+      // 有給は入社6ヶ月後に初めて発生する（労基法）。発生日と残り日数を表示。
+      const startDate=addMonthsStr(e.hireDate,6);
+      const daysLeft=Math.max(0, Math.ceil((new Date(startDate)-new Date(asOf))/86400000));
+      c.appendChild(lineDiv('勤続', g.service>=1? g.service.toFixed(1)+'年' : Math.max(0,Math.round(g.service*12))+'ヶ月'));
+      const sline=el('div','line'); sline.innerHTML=`<span>有給の発生日</span><span style="font-weight:800;color:var(--brand)">${startDate}</span>`; c.appendChild(sline);
+      const note=el('div','muted'); note.style.fontSize='12px'; note.style.marginTop='-2px';
+      note.textContent=`入社6ヶ月後に初めて10日付与されます（あと ${daysLeft} 日）`; c.appendChild(note);
+      // 発生日より前に有給が入力されていないか確認（入力ミスの注意）
+      const pre=paidUsedDetail(e.id, '0000-00-00', prevDayStr(startDate));
+      if(pre.list.length){
+        const w=el('div'); w.style.fontSize='12px'; w.style.color='var(--warn)'; w.style.fontWeight='700'; w.style.marginTop='6px';
+        w.textContent=`⚠ 発生日より前に有給が ${pre.list.length} 件入力されています。発生日以降の日付に直してください。`;
+        c.appendChild(w);
+      }
     } else {
-      c.appendChild(Object.assign(el('div','muted'),{textContent: e.hireDate?'入社6ヶ月未満（付与前）':'入社日を入力すると付与・残・最低取得日数を表示します', style:'padding:6px 0'}));
+      c.appendChild(Object.assign(el('div','muted'),{textContent:'入社日を入力すると付与・残・最低取得日数を表示します', style:'padding:6px 0'}));
     }
     cards.appendChild(c);
   });
   host.appendChild(cards);
   const note=el('p','muted'); note.style.marginTop='14px';
-  note.textContent='付与は勤続から自動（6ヶ月=10日…6年半〜=20日。パートの短日数は比例付与）。2年で時効消滅するため今年分・去年分（繰越）を表示し、古い分から消化として残を計算（半休0.5日）。「最低取得日数（年5日）」は付与10日以上が対象で、付与日から1年で5日の取得が必要です。有休は「シフト作成」タブのセルから入力してください（自動生成の前でも入力でき、ここに自動集計されます）。';
+  note.textContent='有給は入社6ヶ月後に初めて発生します（その時点で10日）。以後は1年ごとに自動付与（1年半=11日…6年半〜=20日。パートの短日数は比例付与）。2年で時効消滅するため今年分・去年分（繰越）を表示し、古い分から消化として残を計算（半休0.5日）。「最低取得日数（年5日）」は付与10日以上が対象で、付与日から1年で5日の取得が必要です。有休は「シフト作成」タブのセルから入力してください（自動生成の前でも入力でき、ここに自動集計されます）。';
   host.appendChild(note);
 }
 function printPaid(){
