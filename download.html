@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>シフト自動作成 — ダウンロード</title>
+<style>
+:root{
+  --bg:#eef2f6;--panel:#fff;--ink:#13202e;--ink-soft:#4a5d70;--line:#d3dde6;
+  --brand:#0f6e8c;--brand-dark:#0a5066;--accent:#b8531b;--ok:#1f7a45;--warn:#b3261e;
+  --shadow:0 1px 3px rgba(16,40,64,.10),0 12px 30px rgba(16,40,64,.10);
+  --font:"Segoe UI","Yu Gothic UI","Meiryo",system-ui,sans-serif;
+}
+*{box-sizing:border-box}html,body{margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--font);line-height:1.7;font-size:16px}
+.wrap{max-width:560px;margin:0 auto;padding:28px 18px 60px}
+.head{display:flex;align-items:center;gap:14px;margin-bottom:20px}
+.mark{width:54px;height:54px;border-radius:14px;background:linear-gradient(135deg,var(--brand),var(--brand-dark));
+  color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:26px;box-shadow:var(--shadow)}
+h1{font-size:22px;margin:0}
+.sub{font-size:13px;color:var(--ink-soft)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);padding:24px;margin-bottom:18px}
+.dlbtn{display:block;width:100%;text-align:center;text-decoration:none;background:var(--accent);color:#fff;
+  font-size:19px;font-weight:800;padding:20px;border-radius:14px;box-shadow:0 8px 18px rgba(184,83,27,.30)}
+.dlbtn:hover{filter:brightness(1.05)}
+.dlbtn small{display:block;font-size:12px;font-weight:600;opacity:.9;margin-top:4px}
+.meta{text-align:center;color:var(--ink-soft);font-size:12.5px;margin-top:12px}
+.steps{counter-reset:s;margin:6px 0 0;padding:0;list-style:none}
+.steps li{position:relative;padding:10px 0 10px 42px;border-bottom:1px dashed var(--line)}
+.steps li:last-child{border-bottom:none}
+.steps li::before{counter-increment:s;content:counter(s);position:absolute;left:0;top:9px;width:28px;height:28px;border-radius:50%;
+  background:var(--brand);color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center;font-size:14px}
+.sect-title{font-size:15px;font-weight:800;margin:0 0 8px;display:flex;align-items:center;gap:8px}
+.sect-title::before{content:"";width:5px;height:18px;border-radius:3px;background:var(--accent)}
+.note{background:#fff7e6;border:1px solid #f0d28a;color:#7a5200;border-radius:12px;padding:12px 14px;font-size:13.5px;margin-top:14px}
+.note b{color:#7a5200}
+.demo{display:block;text-align:center;text-decoration:none;color:var(--brand);font-weight:700;border:1px solid var(--line);
+  border-radius:12px;padding:14px;background:#fff}
+.demo:hover{background:#f4f8fb}
+.foot{text-align:center;color:var(--ink-soft);font-size:12px;margin-top:18px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="head">
+    <div class="mark">勤</div>
+    <div>
+      <h1>シフト自動作成</h1>
+      <div class="sub">正社員シフトの自動作成ツール（Windows用）</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <a class="dlbtn" href="https://github.com/mahanaharuka/shift-scheduler-demo/releases/latest/download/ShiftScheduler.exe">
+      Windows版をダウンロード
+      <small>ShiftScheduler.exe（約7MB・インストール不要）</small>
+    </a>
+    <div class="meta">Windows 10 / 11（64bit）対応 ／ ダウンロード後ダブルクリックで起動</div>
+  </div>
+
+  <div class="card">
+    <div class="sect-title">使い方（かんたん3ステップ）</div>
+    <ol class="steps">
+      <li>上のボタンで <b>ShiftScheduler.exe</b> をダウンロード</li>
+      <li>ファイルを <b>ダブルクリック</b>（ブラウザでアプリが開きます）</li>
+      <li>青い「Windows によって PC が保護されました」が出たら<br><b>「詳細情報」→「実行」</b> を押す</li>
+    </ol>
+    <div class="note">
+      ⚠ 自作アプリのため、初回は警告が出ることがあります（<b>詳細情報→実行</b>でOK）。
+      ウイルス対策ソフトが警告する場合も、よくある誤検知です（許可してください）。動作に問題はありません。
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="sect-title">まずは試してみる</div>
+    <p style="margin:0 0 12px;font-size:13.5px;color:var(--ink-soft)">ダウンロードせずに、スマホ・PCのブラウザですぐ触れます。</p>
+    <a class="demo" href="./">ブラウザでデモを開く（インストール不要）</a>
+  </div>
+
+  <div class="foot">© シフト自動作成</div>
+</div>
+</body>
+</html>
