@@ -59,17 +59,18 @@ h1{font-size:22px;margin:0}
       <div class="badge">アプリの更新</div>
       <div class="sect-title">最新版に更新します</div>
       <p style="margin:0 0 16px;font-size:14px;color:var(--ink-soft)">
-        下のボタンで「更新ツール」を1つダウンロードして、ダブルクリックするだけです。
+        このページを開くと、更新ツール（updater.bat）が<b>自動でダウンロード</b>されます。
+        あとは、ダウンロードした updater.bat を<b>ダブルクリックするだけ</b>で、
         最新版のダウンロード・入れ替え・再起動まで自動で行われます。
         <b>これまでのシフト・有給データはそのまま残ります。</b>
       </p>
+      <div class="ok-tip" id="dlDoneTip" style="display:none">
+        ✓ 更新ツールをダウンロードしました。次は下の手順（updater.bat をダブルクリック）にお進みください。
+      </div>
       <button class="dlbtn" id="btnDownloadUpdater">
         更新ツールをダウンロード
-        <small>updater.bat（とても小さなファイルです）</small>
+        <small>自動で始まらないときは、ここを押してください</small>
       </button>
-      <div class="ok-tip" id="dlDoneTip" style="display:none">
-        ✓ ダウンロードしました。次は下の手順にお進みください。
-      </div>
     </div>
 
     <div class="card">
@@ -211,12 +212,18 @@ function downloadUpdater(){
 // URL に ?update=1 が付いていれば「更新モード」表示に切り替える
 (function(){
   var params=new URLSearchParams(location.search);
-  if(params.get('update')==='1'){
+  var isUpdate = params.get('update')==='1';
+  if(isUpdate){
     document.getElementById('updateContent').style.display='';
     document.getElementById('normalContent').style.display='none';
   }
   var b=document.getElementById('btnDownloadUpdater');
   if(b) b.addEventListener('click', downloadUpdater);
+  // 更新ページを開いたら自動でダウンロードを開始（ユーザーの手数を減らす）。
+  // ブラウザが自動DLをブロックした場合に備え、上のボタンでの手動DLも残してある。
+  if(isUpdate){
+    setTimeout(function(){ try{ downloadUpdater(); }catch(e){} }, 800);
+  }
 })();
 </script>
 </body>
