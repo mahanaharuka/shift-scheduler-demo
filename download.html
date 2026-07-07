@@ -21,7 +21,7 @@ h1{font-size:22px;margin:0}
 .sub{font-size:13px;color:var(--ink-soft)}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);padding:24px;margin-bottom:18px}
 .dlbtn{display:block;width:100%;text-align:center;text-decoration:none;background:var(--accent);color:#fff;
-  font-size:19px;font-weight:800;padding:20px;border-radius:14px;box-shadow:0 8px 18px rgba(184,83,27,.30)}
+  font-size:19px;font-weight:800;padding:20px;border-radius:14px;box-shadow:0 8px 18px rgba(184,83,27,.30);border:none;cursor:pointer}
 .dlbtn:hover{filter:brightness(1.05)}
 .dlbtn small{display:block;font-size:12px;font-weight:600;opacity:.9;margin-top:4px}
 .meta{text-align:center;color:var(--ink-soft);font-size:12.5px;margin-top:12px}
@@ -34,10 +34,13 @@ h1{font-size:22px;margin:0}
 .sect-title::before{content:"";width:5px;height:18px;border-radius:3px;background:var(--accent)}
 .note{background:#fff7e6;border:1px solid #f0d28a;color:#7a5200;border-radius:12px;padding:12px 14px;font-size:13.5px;margin-top:14px}
 .note b{color:#7a5200}
+.badge{display:inline-block;background:#eef2ff;color:#312e81;border:1px solid #c7d2fe;border-radius:999px;
+  padding:3px 12px;font-size:12.5px;font-weight:800;margin-bottom:12px}
 .demo{display:block;text-align:center;text-decoration:none;color:var(--brand);font-weight:700;border:1px solid var(--line);
   border-radius:12px;padding:14px;background:#fff}
 .demo:hover{background:#f4f8fb}
 .foot{text-align:center;color:var(--ink-soft);font-size:12px;margin-top:18px}
+.ok-tip{background:#eefaf1;border:1px solid #b7e3c6;color:#1f7a45;border-radius:12px;padding:10px 14px;font-size:13px;margin-top:12px}
 </style>
 </head>
 <body>
@@ -50,34 +53,171 @@ h1{font-size:22px;margin:0}
     </div>
   </div>
 
-  <div class="card">
-    <a class="dlbtn" href="https://github.com/mahanaharuka/shift-scheduler-demo/releases/latest/download/ShiftScheduler.exe">
-      Windows版をダウンロード
-      <small>ShiftScheduler.exe（約7MB・インストール不要）</small>
-    </a>
-    <div class="meta">Windows 10 / 11（64bit）対応 ／ ダウンロード後ダブルクリックで起動</div>
-  </div>
-
-  <div class="card">
-    <div class="sect-title">使い方（かんたん3ステップ）</div>
-    <ol class="steps">
-      <li>上のボタンで <b>ShiftScheduler.exe</b> をダウンロード</li>
-      <li>ファイルを <b>ダブルクリック</b>（ブラウザでアプリが開きます）</li>
-      <li>青い「Windows によって PC が保護されました」が出たら<br><b>「詳細情報」→「実行」</b> を押す</li>
-    </ol>
-    <div class="note">
-      ⚠ 自作アプリのため、初回は警告が出ることがあります（<b>詳細情報→実行</b>でOK）。
-      ウイルス対策ソフトが警告する場合も、よくある誤検知です（許可してください）。動作に問題はありません。
+  <!-- ============ 更新モード（アプリ内の「更新の手順を開く」から来たとき） ============ -->
+  <div id="updateContent" style="display:none">
+    <div class="card">
+      <div class="badge">アプリの更新</div>
+      <div class="sect-title">最新版に更新します</div>
+      <p style="margin:0 0 16px;font-size:14px;color:var(--ink-soft)">
+        下のボタンで「更新ツール」を1つダウンロードして、ダブルクリックするだけです。
+        最新版のダウンロード・入れ替え・再起動まで自動で行われます。
+        <b>これまでのシフト・有給データはそのまま残ります。</b>
+      </p>
+      <button class="dlbtn" id="btnDownloadUpdater">
+        更新ツールをダウンロード
+        <small>updater.bat（とても小さなファイルです）</small>
+      </button>
+      <div class="ok-tip" id="dlDoneTip" style="display:none">
+        ✓ ダウンロードしました。次は下の手順にお進みください。
+      </div>
     </div>
+
+    <div class="card">
+      <div class="sect-title">このあとの手順（1回だけ）</div>
+      <ol class="steps">
+        <li><b>シフト自動作成のアプリは開いたまま</b>にしておきます（自動で閉じます）</li>
+        <li>ダウンロードフォルダの <b>「updater.bat」</b> をダブルクリックします</li>
+        <li>黒い画面が出て、<b>最新版のダウンロード〜入れ替え〜再起動</b>まで自動で進みます（1〜2分）</li>
+        <li>新しいアプリが立ち上がったら完了です</li>
+      </ol>
+      <div class="note">
+        ⚠ 「WindowsによってPCが保護されました」と青い画面が出たら、
+        <b>「詳細情報」→「実行」</b> を押してください（Microsoftの標準の注意表示で、危険なものではありません）。
+        ウイルス対策ソフトが警告する場合も、よくある誤検知です（許可してください）。
+      </div>
+    </div>
+
+    <div class="foot">© シフト自動作成</div>
   </div>
 
-  <div class="card">
-    <div class="sect-title">まずは試してみる</div>
-    <p style="margin:0 0 12px;font-size:13.5px;color:var(--ink-soft)">ダウンロードせずに、スマホ・PCのブラウザですぐ触れます。</p>
-    <a class="demo" href="./">ブラウザでデモを開く（インストール不要）</a>
-  </div>
+  <!-- ============ 通常モード（新規ダウンロード） ============ -->
+  <div id="normalContent">
+    <div class="card">
+      <a class="dlbtn" href="https://github.com/mahanaharuka/shift-scheduler-demo/releases/latest/download/ShiftScheduler.exe">
+        Windows版をダウンロード
+        <small>ShiftScheduler.exe（インストール不要）</small>
+      </a>
+      <div class="meta">Windows 10 / 11（64bit）対応 ／ ダウンロード後ダブルクリックで起動</div>
+    </div>
 
-  <div class="foot">© シフト自動作成</div>
+    <div class="card">
+      <div class="sect-title">使い方（かんたん3ステップ）</div>
+      <ol class="steps">
+        <li>上のボタンで <b>ShiftScheduler.exe</b> をダウンロード</li>
+        <li>ファイルを <b>ダブルクリック</b>（アプリのウィンドウが開きます）</li>
+        <li>青い「Windows によって PC が保護されました」が出たら<br><b>「詳細情報」→「実行」</b> を押す</li>
+      </ol>
+      <div class="note">
+        ⚠ 自作アプリのため、初回は警告が出ることがあります（<b>詳細情報→実行</b>でOK）。
+        ウイルス対策ソフトが警告する場合も、よくある誤検知です（許可してください）。動作に問題はありません。
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="sect-title">まずは試してみる</div>
+      <p style="margin:0 0 12px;font-size:13.5px;color:var(--ink-soft)">ダウンロードせずに、スマホ・PCのブラウザですぐ触れます。</p>
+      <a class="demo" href="./">ブラウザでデモを開く（インストール不要）</a>
+    </div>
+
+    <div class="foot">© シフト自動作成</div>
+  </div>
 </div>
+
+<script>
+// updater.bat の中身を生成する（PowerShellで最新exeをDL→今のアプリを終了→入れ替え→再起動→自己削除）。
+// ※パス区切りのバックスラッシュは JS 文字列内で必ず \\ とエスケープすること（\S などにすると消える）。
+function buildUpdaterBat(){
+  var lines=[
+    '@echo off',
+    'chcp 65001 >nul',
+    'setlocal enabledelayedexpansion',
+    'title シフト自動作成 - 更新',
+    'echo.',
+    'echo ============================================',
+    'echo   シフト自動作成 を最新版に更新します',
+    'echo ============================================',
+    'echo.',
+    'echo 今のアプリの場所を確認しています...',
+    'set "EXE_PATH="',
+    'for /f "usebackq delims=" %%A in (`powershell -NoProfile -ExecutionPolicy Bypass -Command "(Get-Process ShiftScheduler -ErrorAction SilentlyContinue | Select-Object -First 1).Path"`) do set "EXE_PATH=%%A"',
+    '',
+    'if not defined EXE_PATH (',
+    '  echo.',
+    '  echo [注意] 今のアプリが見つかりませんでした。',
+    '  echo     シフト自動作成のアプリを開いた状態で、',
+    '  echo     もう一度この updater.bat をダブルクリックしてください。',
+    '  echo.',
+    '  pause',
+    '  exit /b 1',
+    ')',
+    '',
+    'echo 今のアプリ: !EXE_PATH!',
+    'echo.',
+    'echo 最新版をダウンロードしています...（1〜2分かかることがあります）',
+    'set "NEW=%TEMP%\\ShiftScheduler.new.exe"',
+    'powershell -NoProfile -ExecutionPolicy Bypass -Command "try{ [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri \'https://github.com/mahanaharuka/shift-scheduler-demo/releases/latest/download/ShiftScheduler.exe\' -OutFile \'%NEW%\' -UseBasicParsing; exit 0 }catch{ exit 1 }"',
+    'if errorlevel 1 (',
+    '  echo.',
+    '  echo [注意] ダウンロードに失敗しました。インターネット接続をご確認ください。',
+    '  echo.',
+    '  pause',
+    '  exit /b 1',
+    ')',
+    '',
+    'echo 今のアプリを閉じています...',
+    'taskkill /IM ShiftScheduler.exe /F >nul 2>&1',
+    'timeout /t 2 /nobreak >nul',
+    '',
+    'echo 新しいアプリに入れ替えています...',
+    'move /Y "%NEW%" "!EXE_PATH!" >nul',
+    'if errorlevel 1 (',
+    '  timeout /t 2 /nobreak >nul',
+    '  move /Y "%NEW%" "!EXE_PATH!" >nul',
+    '  if errorlevel 1 (',
+    '    echo.',
+    '    echo [注意] 入れ替えに失敗しました。ウイルス対策ソフトが原因かもしれません。',
+    '    echo     少し待ってから、もう一度お試しください。',
+    '    echo.',
+    '    pause',
+    '    exit /b 1',
+    '  )',
+    ')',
+    '',
+    'echo 新しいアプリを起動しています...',
+    'start "" "!EXE_PATH!"',
+    '',
+    'echo.',
+    'echo 更新が完了しました！ この画面は自動で閉じます。',
+    'timeout /t 3 /nobreak >nul',
+    'del "%~f0" 2>nul',
+    'endlocal',
+    'exit /b 0',
+    ''
+  ];
+  // UTF-8 BOM を付けて日本語が化けないようにする
+  return '﻿' + lines.join('\r\n');
+}
+function downloadUpdater(){
+  var bat=buildUpdaterBat();
+  var blob=new Blob([bat], {type:'application/octet-stream'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');
+  a.href=url; a.download='updater.bat'; a.style.display='none';
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){ URL.revokeObjectURL(url); a.remove(); }, 1500);
+  var tip=document.getElementById('dlDoneTip');
+  if(tip) tip.style.display='block';
+}
+// URL に ?update=1 が付いていれば「更新モード」表示に切り替える
+(function(){
+  var params=new URLSearchParams(location.search);
+  if(params.get('update')==='1'){
+    document.getElementById('updateContent').style.display='';
+    document.getElementById('normalContent').style.display='none';
+  }
+  var b=document.getElementById('btnDownloadUpdater');
+  if(b) b.addEventListener('click', downloadUpdater);
+})();
+</script>
 </body>
 </html>
