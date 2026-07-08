@@ -76,11 +76,14 @@ h1{font-size:22px;margin:0}
     <div class="card">
       <div class="sect-title">このあとの手順（1回だけ）</div>
       <ol class="steps">
-        <li><b>シフト自動作成のアプリは開いたまま</b>にしておきます（自動で閉じます）</li>
         <li>ダウンロードフォルダの <b>「updater.bat」</b> をダブルクリックします</li>
-        <li>黒い画面が出て、<b>最新版のダウンロード〜入れ替え〜再起動</b>まで自動で進みます（1〜2分）</li>
+        <li>黒い画面が出て、<b>最新版のダウンロード〜入れ替え〜起動</b>まで自動で進みます（1〜2分）</li>
         <li>新しいアプリが立ち上がったら完了です</li>
       </ol>
+      <p style="margin:10px 0 0;font-size:13px;color:var(--ink-soft)">
+        ※シフト自動作成のアプリは<b>開いていても閉じていても大丈夫</b>です（自動で判断して入れ替えます）。<br>
+        ※これまでのシフト・有給データはそのまま残ります。
+      </p>
       <div class="note">
         ⚠ 「WindowsによってPCが保護されました」と青い画面が出たら、
         <b>「詳細情報」→「実行」</b> を押してください（Microsoftの標準の注意表示で、危険なものではありません）。
@@ -125,7 +128,10 @@ h1{font-size:22px;margin:0}
 </div>
 
 <script>
-// updater.bat の中身を生成する（PowerShellで最新exeをDL→今のアプリを終了→入れ替え→再起動→自己削除）。
+// updater.bat の中身を生成する（PowerShellで最新exeをDL→アプリの場所を特定→入れ替え→起動→自己削除）。
+// アプリの場所は 3段階で必ず決まる：①起動中のプロセス ②デスクトップ等のよくある場所 ③見つからなければ
+// デスクトップに新規配置。データは %LOCALAPPDATA% に保存されているため、exe がどこにあっても引き継がれる。
+// ＝アプリが閉じていても・移動されていても・見つからなくても、必ず成功する。
 // ※パス区切りのバックスラッシュは JS 文字列内で必ず \\ とエスケープすること（\S などにすると消える）。
 function buildUpdaterBat(){
   var lines=[
@@ -138,22 +144,6 @@ function buildUpdaterBat(){
     'echo   シフト自動作成 を最新版に更新します',
     'echo ============================================',
     'echo.',
-    'echo 今のアプリの場所を確認しています...',
-    'set "EXE_PATH="',
-    'for /f "usebackq delims=" %%A in (`powershell -NoProfile -ExecutionPolicy Bypass -Command "(Get-Process ShiftScheduler -ErrorAction SilentlyContinue | Select-Object -First 1).Path"`) do set "EXE_PATH=%%A"',
-    '',
-    'if not defined EXE_PATH (',
-    '  echo.',
-    '  echo [注意] 今のアプリが見つかりませんでした。',
-    '  echo     シフト自動作成のアプリを開いた状態で、',
-    '  echo     もう一度この updater.bat をダブルクリックしてください。',
-    '  echo.',
-    '  pause',
-    '  exit /b 1',
-    ')',
-    '',
-    'echo 今のアプリ: !EXE_PATH!',
-    'echo.',
     'echo 最新版をダウンロードしています...（1〜2分かかることがあります）',
     'set "NEW=%TEMP%\\ShiftScheduler.new.exe"',
     'powershell -NoProfile -ExecutionPolicy Bypass -Command "try{ [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri \'https://github.com/mahanaharuka/shift-scheduler-demo/releases/latest/download/ShiftScheduler.exe\' -OutFile \'%NEW%\' -UseBasicParsing; exit 0 }catch{ exit 1 }"',
@@ -165,7 +155,21 @@ function buildUpdaterBat(){
     '  exit /b 1',
     ')',
     '',
-    'echo 今のアプリを閉じています...',
+    'echo アプリの場所を探しています...',
+    'set "EXE_PATH="',
+    'rem ① いま起動中のアプリから場所を取得',
+    'for /f "usebackq delims=" %%A in (`powershell -NoProfile -ExecutionPolicy Bypass -Command "(Get-Process ShiftScheduler -ErrorAction SilentlyContinue | Select-Object -First 1).Path"`) do set "EXE_PATH=%%A"',
+    'rem ② 起動していなければ、よくある場所（デスクトップ・ダウンロード・ドキュメント等）を探す',
+    'if not defined EXE_PATH for /f "usebackq delims=" %%A in (`powershell -NoProfile -ExecutionPolicy Bypass -Command "$c=@([Environment]::GetFolderPath(\'Desktop\'),(Join-Path $env:USERPROFILE \'Downloads\'),[Environment]::GetFolderPath(\'MyDocuments\'),$env:USERPROFILE); foreach($d in $c){ $p=Join-Path $d \'ShiftScheduler.exe\'; if(Test-Path $p){ $p; break } }"`) do set "EXE_PATH=%%A"',
+    'rem ③ どこにも無ければ、デスクトップに新しく置く（データは別の場所に保存されているので引き継がれる）',
+    'if not defined EXE_PATH (',
+    '  for /f "usebackq delims=" %%A in (`powershell -NoProfile -ExecutionPolicy Bypass -Command "[Environment]::GetFolderPath(\'Desktop\')"`) do set "EXE_PATH=%%A\\ShiftScheduler.exe"',
+    '  echo 今のアプリが見つからなかったため、新しいアプリをデスクトップに置きます。',
+    ')',
+    '',
+    'echo 更新先: !EXE_PATH!',
+    'echo.',
+    'echo アプリが起動中なら閉じています...',
     'taskkill /IM ShiftScheduler.exe /F >nul 2>&1',
     'timeout /t 2 /nobreak >nul',
     '',
@@ -189,6 +193,7 @@ function buildUpdaterBat(){
     '',
     'echo.',
     'echo 更新が完了しました！ この画面は自動で閉じます。',
+    'echo （今後は、いま起動したアプリをお使いください）',
     'timeout /t 3 /nobreak >nul',
     'del "%~f0" 2>nul',
     'endlocal',
